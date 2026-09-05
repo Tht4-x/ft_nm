@@ -6,7 +6,7 @@
 #    By: dancel <dancel@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/08/31 20:16:51 by dancel            #+#    #+#              #
-#    Updated: 2026/09/05 19:25:23 by dancel           ###   ########.fr        #
+#    Updated: 2026/09/05 19:31:40 by dancel           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -36,8 +36,7 @@ OBJS      = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 all: $(NAME)
 
 $(NAME): $(LIBFT) $(OBJS)
-	$(CC) $(CFLAGS) -shared -o $(NAME) $(OBJS) $(LIBFT)
-	@ln -sf $(NAME)
+	$(CC) $(CFLAGS) -o $(NAME) $(OBJS) $(LIBFT)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
@@ -54,7 +53,7 @@ clean:
 
 fclean: clean
 	@$(MAKE) fclean -s -C $(LIBFT_DIR)
-	rm -f $(NAME) $(LINKNAME)
+	rm -f $(NAME)
 
 
 # REBUILD
