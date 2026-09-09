@@ -8,10 +8,7 @@ static bool	init_and_open(const char *path, t_elf_file *file, int *fd)
 	file->path = path;
 	*fd = open(path, O_RDONLY);
 	if (*fd < 0)
-	{
-		print_error(path, strerror(errno));
-		return (false);
-	}
+		return (print_error(path, strerror(errno)), false);
 	return (true);
 }
 
