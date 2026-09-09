@@ -1,4 +1,5 @@
 #include "ft_nm.h"
+#include <string.h>
 
 static bool	region_fits(size_t off, size_t len, size_t total)
 {
@@ -30,7 +31,7 @@ bool	locate_symtab_64(t_elf_file *file)
 		sh = shdr_at(file, eh->e_shoff, eh->e_shentsize, i);
 		if (sh->sh_type == SHT_SYMTAB)
 		{
-			if (sh->sh_link >= eh->e_shnum || sh->sh_entsize == 0) //link renvoie vers l'adresse de strtab si dans symtab
+			if (sh->sh_link >= eh->e_shnum || sh->sh_entsize < sizeof(Elf64_Sym)) //link renvoie vers l'adresse de strtab si dans symtab
 				return (false);
 
 			if (!region_fits((size_t)sh->sh_offset, (size_t)sh->sh_size, file->size))
@@ -51,6 +52,52 @@ bool	locate_symtab_64(t_elf_file *file)
 		i++;
 	}
 	file->has_symtab = false;
+	return (true);
+}
+
+static const char	*resolve_name(const t_elf_file *file, size_t st_name)
+{
+	const char	*base;
+
+	if (st_name >= file->strtab_size)
+		return (NULL);
+	base = (const char *)file->map + file->strtab_off + st_name;
+	if (!memchr(base, '\0', file->strtab_size - st_name))
+		return (NULL);
+	return (base);
+}
+
+bool	build_symbols_64(t_elf_file *file)
+{
+	const Elf64_Sym	*raw;
+	size_t			count;
+	size_t			i;
+	const char		*name;
+
+	count = file->symtab_size / file->sym_entsize;
+	file->symbols = malloc(sizeof(t_symbol) * count);
+	if (!file->symbols)
+		return (false);
+
+	file->nb_symbols = 0;
+	i = 1;
+	while (i < count) //espace toujours vide en i = 0
+	{
+		raw = (const Elf64_Sym *)((const unsigned char *)file->map + file->symtab_off + i * file->sym_entsize);
+		name = resolve_name(file, raw->st_name); //st_name = offset du str du symbole a partir du debut de strtab
+		if (name && ELF64_ST_TYPE(raw->st_info) != STT_FILE	&& ELF64_ST_TYPE(raw->st_info) != STT_SECTION)
+		{
+			file->symbols[file->nb_symbols].name = name;
+			file->symbols[file->nb_symbols].value = (unsigned long)raw->st_value;
+			file->symbols[file->nb_symbols].has_value = (raw->st_shndx != SHN_UNDEF);
+			file->symbols[file->nb_symbols].bind = ELF64_ST_BIND(raw->st_info);
+			file->symbols[file->nb_symbols].type = ELF64_ST_TYPE(raw->st_info);
+			file->symbols[file->nb_symbols].shndx = raw->st_shndx;
+			file->symbols[file->nb_symbols].type_char = '?';
+			file->nb_symbols++;
+		}
+		i++;
+	}
 	return (true);
 }
 
@@ -86,4 +133,14 @@ typedef struct
   Elf64_Xword	sh_addralign;	/ Section alignment /
   Elf64_Xword	sh_entsize;		/ Entry size if section holds table /
 } Elf64_Shdr;
+ 
+typedef struct
+{
+  Elf64_Word	st_name;		/ Symbol name (string tbl index) /
+  unsigned char	st_info;		/ Symbol type and binding /
+  unsigned char st_other;		/ Symbol visibility /
+  Elf64_Section	st_shndx;		/ Section index /
+  Elf64_Addr	st_value;		/ Symbol value /
+  Elf64_Xword	st_size;		/ Symbol size /
+} Elf64_Sym;
 */

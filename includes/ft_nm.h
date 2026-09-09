@@ -19,7 +19,7 @@ typedef struct s_options
 
 typedef struct s_symbol
 {
-	char			*name;
+	const char		*name;
 	unsigned long	value;			//adresse du symbole
 	int				has_value;		//a-til une adresse -> gere value == 0
 	unsigned char	bind;			//local ou global
@@ -51,6 +51,7 @@ bool	open_and_map(const char *path, t_elf_file *file);
 void	close_map(t_elf_file *file);
 bool	elf_check(t_elf_file *file);
 bool	locate_symtab_64(t_elf_file *file);
+bool	build_symbols_64(t_elf_file *file);
 
 #endif
 

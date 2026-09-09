@@ -1,4 +1,6 @@
 #include "ft_nm.h"
+#include <errno.h>
+#include <string.h>
 
 static int	handle_file(const char *path)
 {
@@ -19,7 +21,12 @@ static int	handle_file(const char *path)
 	if (!file.has_symtab)
 		return (print_error(path, "no symbols"), close_map(&file), 0);
 
-	dprintf(1, "%s: symtab=%zu octets, entsize=%zu -> %zu symboles ; strtab=%zu octets\n", path, file.symtab_size, file.sym_entsize, file.symtab_size / file.sym_entsize, file.strtab_size);
+	if (!build_symbols_64(&file))
+		return (print_error(path, strerror(errno)), close_map(&file), 1);
+
+	for (size_t i = 0; i < file.nb_symbols; i++)
+		dprintf(1, "%016lx %s\n", file.symbols[i].value, file.symbols[i].name);
+		
 	close_map(&file);
 	return (0);
 }
