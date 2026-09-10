@@ -53,6 +53,8 @@ bool	elf_check(t_elf_file *file);
 bool	locate_symtab_64(t_elf_file *file);
 bool	build_symbols_64(t_elf_file *file);
 void	set_type_chars_64(t_elf_file *file);
+void	sort_symbols(t_elf_file *file);
+void	print_symbols(const t_elf_file *file);
 
 #endif
 

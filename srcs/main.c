@@ -1,6 +1,7 @@
 #include "ft_nm.h"
 #include <errno.h>
 #include <string.h>
+#include <locale.h>
 
 static int	handle_file(const char *path)
 {
@@ -24,16 +25,8 @@ static int	handle_file(const char *path)
 	if (!build_symbols_64(&file))
 		return (print_error(path, strerror(errno)), close_map(&file), 1);
 	set_type_chars_64(&file);
-
-	for (size_t i = 0; i < file.nb_symbols; i++)
-	{
-		if (file.symbols[i].has_value)
-			dprintf(1, "%016lx %c %s\n", file.symbols[i].value,
-				file.symbols[i].type_char, file.symbols[i].name);
-		else
-			dprintf(1, "%16s %c %s\n", "",
-				file.symbols[i].type_char, file.symbols[i].name);
-	}
+	sort_symbols(&file);
+	print_symbols(&file);
 	close_map(&file);
 	return (0);
 }
@@ -43,6 +36,7 @@ int	main(int argc, char **argv)
 	int	i;
 	int	status;
 
+	setlocale(LC_COLLATE, "");
 	status = 0;
 	if (argc == 1)
 		status = handle_file("a.out");
