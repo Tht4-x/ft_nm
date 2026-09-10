@@ -2,13 +2,53 @@
 #include <errno.h>
 #include <string.h>
 
+void	close_map(t_elf_file *file)
+{
+	if (file->map)
+		munmap(file->map, file->size);
+	file->map = NULL;
+	free(file->symbols);
+	file->symbols = NULL;
+}
+
+bool	elf_check(t_elf_file *file)
+{
+	const unsigned char	*e_ident;
+
+	if (file->size < EI_NIDENT)
+		return (print_error(file->path, "file format not recognized"), false);
+
+	e_ident = (const unsigned char *)file->map;
+	if (memcmp(e_ident, ELFMAG, SELFMAG) != 0)
+		return (print_error(file->path, "file format not recognized"), false);
+
+	if (e_ident[EI_CLASS] == ELFCLASS64)
+		file->is_64 = true;
+	else if (e_ident[EI_CLASS] == ELFCLASS32)
+		file->is_64 = false;
+	else
+		return (print_error(file->path, "file format not recognized"), false);
+
+	if (file->is_64 && file->size < sizeof(Elf64_Ehdr))
+		return (print_error(file->path, "file format not recognized"), false);
+
+	if (!file->is_64 && file->size < sizeof(Elf32_Ehdr))
+		return (print_error(file->path, "file format not recognized"), false);
+
+	return (true);
+}
+
 static bool	init_and_open(const char *path, t_elf_file *file, int *fd)
 {
 	memset(file, 0, sizeof(*file));
 	file->path = path;
 	*fd = open(path, O_RDONLY);
 	if (*fd < 0)
+	{
+		if (errno == ENOENT)
+			return (print_error(path, "No such file"), false);
 		return (print_error(path, strerror(errno)), false);
+	}
 	return (true);
 }
 
@@ -38,11 +78,3 @@ bool	open_and_map(const char *path, t_elf_file *file)
 	return (true);
 }
 
-void	close_map(t_elf_file *file)
-{
-	if (file->map)
-		munmap(file->map, file->size);
-	file->map = NULL;
-	free(file->symbols);
-	file->symbols = NULL;
-}

@@ -53,37 +53,10 @@ bool	elf_check(t_elf_file *file);
 bool	locate_symtab_64(t_elf_file *file);
 bool	build_symbols_64(t_elf_file *file);
 void	set_type_chars_64(t_elf_file *file);
+bool	locate_symtab_32(t_elf_file *file);
+bool	build_symbols_32(t_elf_file *file);
+void	set_type_chars_32(t_elf_file *file);
 void	sort_symbols(t_elf_file *file);
 void	print_symbols(const t_elf_file *file);
 
 #endif
-
-/*
-
-┌──────────────────────────────┐
-│ ELF Header                   │ ← informations sur le fichier, dis ou trouver les autres sections
-├──────────────────────────────┤
-│ .text                        │ ← code machine
-├──────────────────────────────┤
-│ .data                        │ ← variables initialisées
-├──────────────────────────────┤
-│ .bss                         │ ← variables non initialisées
-├──────────────────────────────┤
-│ .symtab                      │ ← table des symboles
-├──────────────────────────────┤
-│ .strtab                      │ ← noms des symboles
-├──────────────────────────────┤
-│ .shstrtab                    │ ← noms des sections
-└──────────────────────────────┘
-
-SYMTAB :
-typedef struct {
-    Elf64_Word    st_name;   // où trouver le nom dans .strtab
-    unsigned char st_info;   // type + portée du symbole
-    unsigned char st_other;  // informations supplémentaires
-    Elf64_Half    st_shndx;  // section à laquelle il appartient
-    Elf64_Addr    st_value;  // valeur/adresse du symbole
-    Elf64_Xword   st_size;   // taille du symbole
-} Elf64_Sym;
-
-*/
