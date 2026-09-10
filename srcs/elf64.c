@@ -1,5 +1,6 @@
 #include "ft_nm.h"
 #include <string.h>
+#include <ctype.h>
 
 static bool	region_fits(size_t off, size_t len, size_t total)
 {
@@ -101,6 +102,54 @@ bool	build_symbols_64(t_elf_file *file)
 	return (true);
 }
 
+static char	compute_type_char_64(const t_elf_file *file, const t_symbol *sym)
+{
+	const Elf64_Ehdr	*eh;
+	const Elf64_Shdr	*sh;
+	char				base;
+
+	if (sym->shndx == SHN_UNDEF)
+		return (sym->bind == STB_WEAK ? 'w' : 'U');
+	if (sym->bind == STB_WEAK)
+		return ('W');
+	if (sym->shndx == SHN_ABS)
+		return (sym->bind == STB_LOCAL ? 'a' : 'A');
+	if (sym->shndx == SHN_COMMON)
+		return (sym->bind == STB_LOCAL ? 'c' : 'C');
+	eh = (const Elf64_Ehdr *)file->map;
+	if (sym->shndx >= eh->e_shnum)
+		base = '?';
+	else
+	{
+		sh = shdr_at(file, eh->e_shoff, eh->e_shentsize, sym->shndx);
+		if (!(sh->sh_flags & SHF_ALLOC))
+			base = 'n';
+		else if (sh->sh_flags & SHF_EXECINSTR)
+			base = 't';
+		else if (sh->sh_type == SHT_NOBITS)
+			base = 'b';
+		else if (!(sh->sh_flags & SHF_WRITE))
+			base = 'r';
+		else
+			base = 'd';
+	}
+	if (sym->bind == STB_LOCAL)
+		return (base);
+	return ((char)toupper((unsigned char)base));
+}
+
+void	set_type_chars_64(t_elf_file *file)
+{
+	size_t	i;
+
+	i = 0;
+	while (i < file->nb_symbols)
+	{
+		file->symbols[i].type_char = compute_type_char_64(file, &file->symbols[i]);
+		i++;
+	}
+}
+
 /*
 typedef struct
 {
@@ -143,4 +192,54 @@ typedef struct
   Elf64_Addr	st_value;		/ Symbol value /
   Elf64_Xword	st_size;		/ Symbol size /
 } Elf64_Sym;
+
+U	Undefined — symbole utilisé mais défini ailleurs
+T	Fonction dans .text (global)
+t	Fonction dans .text (local)
+D	Donnée initialisée dans .data (global)
+d	Donnée initialisée dans .data (local)
+B	Donnée non initialisée dans .bss (global)
+b	Donnée non initialisée dans .bss (local)
+R	Donnée en lecture seule (.rodata) (global)
+r	Donnée en lecture seule (.rodata) (local)
+W	Symbole weak défini
+w	Symbole weak non défini
+A	Symbole Absolute (SHN_ABS)
+a	Absolute local
+C	Common symbol
+c	Common small
+N	Debugging / symbole de type spécial
+S	Section de petite taille
+s	Section de petite taille locale
+V	Weak object défini
+v	Weak object non défini
+
+                 section du symbole
+                         │
+                         ▼
+              index valide ?
+                /          \
+              NON           OUI
+               │             │
+               ?             ▼
+                         SHF_ALLOC ?
+                         /       \
+                       NON        OUI
+                        │          │
+                        n          ▼
+                             SHF_EXECINSTR ?
+                               /       \
+                             OUI        NON
+                              │          │
+                              t          ▼
+                                  SHT_NOBITS ?
+                                    /      \
+                                  OUI       NON
+                                   │         │
+                                   b         ▼
+                                      SHF_WRITE ?
+                                       /      \
+                                     NON       OUI
+                                      │         │
+                                      r         d
 */

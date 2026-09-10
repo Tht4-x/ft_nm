@@ -52,6 +52,7 @@ void	close_map(t_elf_file *file);
 bool	elf_check(t_elf_file *file);
 bool	locate_symtab_64(t_elf_file *file);
 bool	build_symbols_64(t_elf_file *file);
+void	set_type_chars_64(t_elf_file *file);
 
 #endif
 

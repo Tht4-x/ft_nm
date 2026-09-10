@@ -23,10 +23,17 @@ static int	handle_file(const char *path)
 
 	if (!build_symbols_64(&file))
 		return (print_error(path, strerror(errno)), close_map(&file), 1);
+	set_type_chars_64(&file);
 
 	for (size_t i = 0; i < file.nb_symbols; i++)
-		dprintf(1, "%016lx %s\n", file.symbols[i].value, file.symbols[i].name);
-		
+	{
+		if (file.symbols[i].has_value)
+			dprintf(1, "%016lx %c %s\n", file.symbols[i].value,
+				file.symbols[i].type_char, file.symbols[i].name);
+		else
+			dprintf(1, "%16s %c %s\n", "",
+				file.symbols[i].type_char, file.symbols[i].name);
+	}
 	close_map(&file);
 	return (0);
 }
