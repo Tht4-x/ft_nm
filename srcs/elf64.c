@@ -1,6 +1,7 @@
 #include "ft_nm.h"
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
 
 static bool	region_fits(size_t off, size_t len, size_t total)
 {
@@ -25,7 +26,19 @@ bool	locate_symtab_64(t_elf_file *file)
 
 	if (!region_fits((size_t)eh->e_shoff, (size_t)eh->e_shnum * (size_t)eh->e_shentsize, file->size))
 		return (false);
-		
+
+	file->has_shstrtab = false;
+	if (eh->e_shstrndx < eh->e_shnum)
+	{
+		sh = shdr_at(file, eh->e_shoff, eh->e_shentsize, eh->e_shstrndx);
+		if (region_fits((size_t)sh->sh_offset, (size_t)sh->sh_size, file->size))
+		{
+			file->has_shstrtab = true;
+			file->shstrtab_off = (size_t)sh->sh_offset;
+			file->shstrtab_size = (size_t)sh->sh_size;
+		}
+	}
+
 	i = 0;
 	while (i < eh->e_shnum)
 	{
@@ -56,16 +69,32 @@ bool	locate_symtab_64(t_elf_file *file)
 	return (true);
 }
 
-static const char	*resolve_name(const t_elf_file *file, size_t st_name)
+//=============================================================================
+
+static const char	*resolve_str(const t_elf_file *file, size_t tab_off, size_t tab_size, size_t off)
 {
 	const char	*base;
 
-	if (st_name >= file->strtab_size)
+	if (off >= tab_size)
 		return (NULL);
-	base = (const char *)file->map + file->strtab_off + st_name;
-	if (!memchr(base, '\0', file->strtab_size - st_name))
+	base = (const char *)file->map + tab_off + off;
+	if (!memchr(base, '\0', tab_size - off))
 		return (NULL);
 	return (base);
+}
+
+static const char	*section_symbol_name(const t_elf_file *file, unsigned short shndx)
+{
+	const Elf64_Ehdr	*eh;
+	const Elf64_Shdr	*target;
+
+	if (!file->has_shstrtab)
+		return (NULL);
+	eh = (const Elf64_Ehdr *)file->map;
+	if (shndx >= eh->e_shnum)
+		return (NULL);
+	target = shdr_at(file, eh->e_shoff, eh->e_shentsize, shndx);
+	return (resolve_str(file, file->shstrtab_off, file->shstrtab_size, target->sh_name));
 }
 
 bool	build_symbols_64(t_elf_file *file)
@@ -85,8 +114,10 @@ bool	build_symbols_64(t_elf_file *file)
 	while (i < count) //espace toujours vide en i = 0
 	{
 		raw = (const Elf64_Sym *)((const unsigned char *)file->map + file->symtab_off + i * file->sym_entsize);
-		name = resolve_name(file, raw->st_name); //st_name = offset du str du symbole a partir du debut de strtab
-		if (name && ELF64_ST_TYPE(raw->st_info) != STT_FILE	&& ELF64_ST_TYPE(raw->st_info) != STT_SECTION)
+		name = resolve_str(file, file->strtab_off, file->strtab_size, raw->st_name); //st_name = offset du str du symbole a partir du debut de strtab
+		if (name && ELF64_ST_TYPE(raw->st_info) == STT_SECTION)
+			name = section_symbol_name(file, raw->st_shndx);
+		if (name)
 		{
 			file->symbols[file->nb_symbols].name = name;
 			file->symbols[file->nb_symbols].value = (unsigned long)raw->st_value;
@@ -101,6 +132,8 @@ bool	build_symbols_64(t_elf_file *file)
 	}
 	return (true);
 }
+
+//=============================================================================
 
 static char	compute_type_char_64(const t_elf_file *file, const t_symbol *sym)
 {
@@ -123,7 +156,11 @@ static char	compute_type_char_64(const t_elf_file *file, const t_symbol *sym)
 	{
 		sh = shdr_at(file, eh->e_shoff, eh->e_shentsize, sym->shndx);
 		if (!(sh->sh_flags & SHF_ALLOC))
+		{
+			if (sym->type == STT_SECTION)
+				return ('N');
 			base = 'n';
+		}
 		else if (sh->sh_flags & SHF_EXECINSTR)
 			base = 't';
 		else if (sh->sh_type == SHT_NOBITS)

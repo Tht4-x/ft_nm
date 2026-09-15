@@ -1,7 +1,6 @@
 #ifndef FT_NM_H
 # define FT_NM_H
 
-# include "libft.h"
 # include <elf.h>
 # include <sys/stat.h>
 # include <sys/mman.h>
@@ -35,17 +34,21 @@ typedef struct s_elf_file
 	size_t			size;
 	bool			is_64;
 	bool			has_symtab;
-	size_t			symtab_off;		//offset dans le fichier des donnees .symtab
-	size_t			symtab_size;	//sh_size de .symtab (en octets)
-	size_t			sym_entsize;	//sh_entsize de .symtab (taille d'un Sym)
-	size_t			strtab_off;		//offset dans le fichier des donnees .strtab
-	size_t			strtab_size;	//sh_size de .strtab (en octets)
+	size_t			symtab_off;
+	size_t			symtab_size;
+	size_t			sym_entsize;
+	size_t			strtab_off;
+	size_t			strtab_size;
+	bool			has_shstrtab;
+	size_t			shstrtab_off;
+	size_t			shstrtab_size;
 	t_symbol		*symbols;
 	size_t			nb_symbols;
 }					t_elf_file;
 
-int		ft_nm(const char *path, const t_options *opts, int nb_files);
-
+bool	parse_args(int argc, char **argv, t_options *opts);
+void	filter_symbols(t_elf_file *file, const t_options *opts);
+void	reverse_symbols(t_elf_file *file);
 void	print_error(const char *path, const char *msg);
 bool	open_and_map(const char *path, t_elf_file *file);
 void	close_map(t_elf_file *file);

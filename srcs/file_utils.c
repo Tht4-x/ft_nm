@@ -1,6 +1,8 @@
 #include "ft_nm.h"
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 void	close_map(t_elf_file *file)
 {
@@ -75,6 +77,29 @@ bool	open_and_map(const char *path, t_elf_file *file)
 	
 	if (file->map == MAP_FAILED)
 		return (print_error(path, strerror(errno)), file->map = NULL, false);
+	return (true);
+}
+
+bool	parse_args(int argc, char **argv, t_options *opts)
+{
+	int	c;
+
+	memset(opts, 0, sizeof(*opts));
+	while ((c = getopt(argc, argv, "agupr")) != -1)
+	{
+		if (c == 'a')
+			opts->all = true;
+		else if (c == 'g')
+			opts->extern_only = true;
+		else if (c == 'u')
+			opts->undefined_only = true;
+		else if (c == 'p')
+			opts->no_sort = true;
+		else if (c == 'r')
+			opts->reverse = true;
+		else
+			return (false);
+	}
 	return (true);
 }
 

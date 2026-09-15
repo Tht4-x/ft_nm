@@ -20,10 +20,7 @@ NAME      = ft_nm
 
 CC        = cc
 CFLAGS    = -Wall -Wextra -Werror -g3
-INCLUDES  = -I includes -I libft
-
-LIBFT_DIR = libft
-LIBFT     = $(LIBFT_DIR)/libft.a
+INCLUDES  = -I includes
 
 SRC_DIR   = srcs
 OBJ_DIR   = objects
@@ -35,24 +32,19 @@ OBJS      = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 all: $(NAME)
 
-$(NAME): $(LIBFT) $(OBJS)
-	$(CC) $(CFLAGS) -o $(NAME) $(OBJS) $(LIBFT)
+$(NAME): $(OBJS)
+	$(CC) $(CFLAGS) -o $(NAME) $(OBJS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-$(LIBFT):
-	@$(MAKE) -s -C $(LIBFT_DIR)
-
 # CLEANING
 # ============================
 clean:
-	@$(MAKE) clean -s -C $(LIBFT_DIR)
 	rm -rf $(OBJ_DIR)
 
 fclean: clean
-	@$(MAKE) fclean -s -C $(LIBFT_DIR)
 	rm -f $(NAME)
 
 

@@ -1,7 +1,5 @@
 # Notes ELF — projet ft_nm
 
-Notes de référence sur le format ELF et la logique de classification des symboles, telles qu'utilisées dans `ft_nm`.
-
 ## 1. En-tête ELF (`e_ident`, 16 premiers octets)
 
 | Octet(s) | Champ | Valeur / rôle |
@@ -32,26 +30,6 @@ Notes de référence sur le format ELF et la logique de classification des symbo
 | 60-61 | `e_shnum` | nombre d'entrées dans la Section Header Table |
 | 62-63 | `e_shstrndx` | index de la section des noms de sections (`.shstrtab`) |
 
-```c
-typedef struct
-{
-  unsigned char e_ident[EI_NIDENT]; /* Magic number and other info */
-  Elf64_Half    e_type;             /* Object file type */
-  Elf64_Half    e_machine;          /* Architecture */
-  Elf64_Word    e_version;          /* Object file version */
-  Elf64_Addr    e_entry;            /* Entry point virtual address */
-  Elf64_Off     e_phoff;            /* Program header table file offset */
-  Elf64_Off     e_shoff;            /* Section header table file offset */
-  Elf64_Word    e_flags;            /* Processor-specific flags */
-  Elf64_Half    e_ehsize;           /* ELF header size in bytes */
-  Elf64_Half    e_phentsize;        /* Program header table entry size */
-  Elf64_Half    e_phnum;            /* Program header table entry count */
-  Elf64_Half    e_shentsize;        /* Section header table entry size */
-  Elf64_Half    e_shnum;            /* Section header table entry count */
-  Elf64_Half    e_shstrndx;         /* Section header string table index */
-} Elf64_Ehdr;
-```
-
 ## 3. Vue d'ensemble du fichier
 
 ```
@@ -76,17 +54,7 @@ Chemin suivi par le parsing : `e_shoff/e_shnum` (header) → on scanne la table 
 
 ## 4. Une entrée de symbole (`Elf64_Sym`)
 
-```c
-typedef struct
-{
-  Elf64_Word    st_name;   // offset du nom dans .strtab
-  unsigned char st_info;   // bind (4 bits haut) + type (4 bits bas)
-  unsigned char st_other;  // visibilité, non utilisé ici
-  Elf64_Section st_shndx;  // section d'appartenance, ou SHN_UNDEF/SHN_ABS/SHN_COMMON
-  Elf64_Addr    st_value;  // adresse (exécutable/.so) ou offset dans la section (.o)
-  Elf64_Xword   st_size;   // taille du symbole
-} Elf64_Sym;
-```
+Voir la structure complète en fin de document.
 
 ## 5. Lettres de type (implémentées dans `ft_nm`)
 
@@ -101,10 +69,9 @@ typedef struct
 | `R` / `r` | Lecture seule (`.rodata`) | alloué, pas writable |
 | `A` / `a` | Absolu | `shndx == SHN_ABS` |
 | `C` / `c` | Common | `shndx == SHN_COMMON` — `c` (local) jamais atteint en pratique sur x86-64 |
-| `n` | Section non chargée en mémoire | section sans `SHF_ALLOC` (ex: `.group`) |
+| `n` | Symbole ordinaire dans une section non chargée en mémoire | section sans `SHF_ALLOC` (ex: `.group`) |
+| `N` | Symbole `SECTION` dans une section non chargée en mémoire | `sym->type == STT_SECTION`, section sans `SHF_ALLOC` (ex: `.debug_*`) — visible seulement avec `-a` |
 | `?` | Non classifiable | index de section corrompu/hors bornes (fichier malveillant) |
-
-Majuscule = global/weak, minuscule = local (sauf cas spéciaux `U`/`w`/`W`/`n`/`?` qui n'ont pas de forme "inverse").
 
 ## 6. Arbre de décision (`compute_type_char`)
 
@@ -112,22 +79,81 @@ Ordre exact des tests dans le code :
 
 ```
 shndx == SHN_UNDEF ?
-├── OUI → bind == WEAK ? → w : U
-└── NON → bind == WEAK ? → W
-           │
-           NON → shndx == SHN_ABS ?
-                 ├── OUI → bind == LOCAL ? → a : A
-                 └── NON → shndx == SHN_COMMON ?
-                           ├── OUI → bind == LOCAL ? → c : C
-                           └── NON → index de section valide ?
-                                     ├── NON → ?
-                                     └── OUI → SHF_ALLOC ?
-                                               ├── NON → n
-                                               └── OUI → SHF_EXECINSTR ?
-                                                         ├── OUI → t (T si global)
-                                                         └── NON → SHT_NOBITS ?
-                                                                   ├── OUI → b (B si global)
-                                                                   └── NON → SHF_WRITE ?
-                                                                             ├── NON → r (R si global)
-                                                                             └── OUI → d (D si global)
+├── OUI → bind == WEAK ?
+│         ├── OUI → w
+│         └── NON → U
+│
+└── NON → bind == WEAK ?
+          ├── OUI → W
+          │
+          └── NON → shndx == SHN_ABS ?
+                    ├── OUI → bind == LOCAL ?
+                    │         ├── OUI → a
+                    │         └── NON → A
+                    │
+                    └── NON → shndx == SHN_COMMON ?
+                              ├── OUI → bind == LOCAL ?
+                              │         ├── OUI → c
+                              │         └── NON → C
+                              │
+                              └── NON → index de section valide (shndx < e_shnum) ?
+                                        ├── NON → ?
+                                        │
+                                        └── OUI → SHF_ALLOC ?
+                                                  ├── NON → type == STT_SECTION ?
+                                                  │         ├── OUI → N
+                                                  │         └── NON → n
+                                                  │
+                                                  └── OUI → SHF_EXECINSTR ?
+                                                            ├── OUI → bind == LOCAL ?
+                                                            │         ├── OUI → t
+                                                            │         └── NON → T
+                                                            │
+                                                            └── NON → SHT_NOBITS ?
+                                                                      ├── OUI → bind == LOCAL ?
+                                                                      │         ├── OUI → b
+                                                                      │         └── NON → B
+                                                                      │
+                                                                      └── NON → SHF_WRITE ?
+                                                                                ├── NON → bind == LOCAL ?
+                                                                                │         ├── OUI → r
+                                                                                │         └── NON → R
+                                                                                │
+                                                                                └── OUI → bind == LOCAL ?
+                                                                                          ├── OUI → d
+                                                                                          └── NON → D
+```
+
+18 lettres possibles au total : `U w W a A c C ? N n t T b B r R d D`.
+
+## 7. Structures C complètes
+
+```c
+typedef struct
+{
+  unsigned char e_ident[EI_NIDENT]; /* Magic number and other info */
+  Elf64_Half    e_type;             /* Object file type */
+  Elf64_Half    e_machine;          /* Architecture */
+  Elf64_Word    e_version;          /* Object file version */
+  Elf64_Addr    e_entry;            /* Entry point virtual address */
+  Elf64_Off     e_phoff;            /* Program header table file offset */
+  Elf64_Off     e_shoff;            /* Section header table file offset */
+  Elf64_Word    e_flags;            /* Processor-specific flags */
+  Elf64_Half    e_ehsize;           /* ELF header size in bytes */
+  Elf64_Half    e_phentsize;        /* Program header table entry size */
+  Elf64_Half    e_phnum;            /* Program header table entry count */
+  Elf64_Half    e_shentsize;        /* Section header table entry size */
+  Elf64_Half    e_shnum;            /* Section header table entry count */
+  Elf64_Half    e_shstrndx;         /* Section header string table index */
+} Elf64_Ehdr;
+
+typedef struct
+{
+  Elf64_Word    st_name;   // offset du nom dans .strtab
+  unsigned char st_info;   // bind (4 bits haut) + type (4 bits bas)
+  unsigned char st_other;  // visibilité, non utilisé ici
+  Elf64_Section st_shndx;  // section d'appartenance, ou SHN_UNDEF/SHN_ABS/SHN_COMMON
+  Elf64_Addr    st_value;  // adresse (exécutable/.so) ou offset dans la section (.o)
+  Elf64_Xword   st_size;   // taille du symbole
+} Elf64_Sym;
 ```
