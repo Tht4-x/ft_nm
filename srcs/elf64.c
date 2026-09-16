@@ -157,7 +157,7 @@ static char	compute_type_char_64(const t_elf_file *file, const t_symbol *sym)
 		sh = shdr_at(file, eh->e_shoff, eh->e_shentsize, sym->shndx);
 		if (!(sh->sh_flags & SHF_ALLOC))
 		{
-			if (sym->type == STT_SECTION)
+			if (sym->type == STT_SECTION && !strncmp(sym->name, ".debug", 6))
 				return ('N');
 			base = 'n';
 		}

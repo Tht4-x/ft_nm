@@ -70,7 +70,7 @@ Voir la structure complète en fin de document.
 | `A` / `a` | Absolu | `shndx == SHN_ABS` |
 | `C` / `c` | Common | `shndx == SHN_COMMON` — `c` (local) jamais atteint en pratique sur x86-64 |
 | `n` | Symbole ordinaire dans une section non chargée en mémoire | section sans `SHF_ALLOC` (ex: `.group`) |
-| `N` | Symbole `SECTION` dans une section non chargée en mémoire | `sym->type == STT_SECTION`, section sans `SHF_ALLOC` (ex: `.debug_*`) — visible seulement avec `-a` |
+| `N` | Symbole `SECTION` dans une section de *debug* | `sym->type == STT_SECTION`, section sans `SHF_ALLOC` **et** dont le nom commence par `.debug` — visible seulement avec `-a`. Une section non-alloc mais pas "debug" (ex: `.comment`) reste `n`, pas `N` (vérifié empiriquement : `.comment` a les mêmes flags que `.debug_str` mais donne `n`) |
 | `?` | Non classifiable | index de section corrompu/hors bornes (fichier malveillant) |
 
 ## 6. Arbre de décision (`compute_type_char`)
@@ -100,7 +100,7 @@ shndx == SHN_UNDEF ?
                                         ├── NON → ?
                                         │
                                         └── OUI → SHF_ALLOC ?
-                                                  ├── NON → type == STT_SECTION ?
+                                                  ├── NON → type == STT_SECTION ET nom commence par ".debug" ?
                                                   │         ├── OUI → N
                                                   │         └── NON → n
                                                   │
